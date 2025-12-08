@@ -18,6 +18,10 @@ services:
   backend:
     build:
       context: ./backend
+      environment:
+      - ML_URL=http://ml_service:9000
+    depends_on:
+      - ml_service
     networks:
       - dev
     dns:
@@ -26,6 +30,18 @@ services:
     mem_limit: 2024m
     mem_reservation: 256m
     restart: always
+
+  ml_service:
+    build:
+      context: ./ML
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./ML/models:/app/models
+      - ./ML/data:/app/data
+    networks:
+      - dev
+    restart: unless-stopped
 
   frontend:
     build:

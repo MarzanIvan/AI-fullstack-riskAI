@@ -24,7 +24,7 @@ function ProjectList () {
                         <a href="/credit" className="portfolio-element__link borderless"
                            title="Риск-management в кредитовании с riskAI">
                             <div className="portfolio-element__image image-loading">
-                                <img className="lazyload" src="/img/item1.jpg"
+                                <img className="lazyload" src="/item1.jpg"
                                      srcSet=""
                                      alt="Кредитование" loading="lazy"/>
                             </div>
@@ -40,7 +40,7 @@ function ProjectList () {
                         <a href="/insurance" className="portfolio-element__link borderless"
                            title="Риск-management в страховании с riskAI">
                             <div className="portfolio-element__image image-loading">
-                                <img className="lazyload" src="/img/item2.jpg"
+                                <img className="lazyload" src="/item2.jpg"
                                      srcSet=""
                                      alt="Страхование. " loading="lazy"/>
                             </div>
@@ -56,7 +56,7 @@ function ProjectList () {
                         <a href="/investment" className="portfolio-element__link borderless"
                            title="Риск-management в инвестировании с riskAI">
                             <div className="portfolio-element__image image-loading">
-                                <img className="lazyload" src="/img/item3.jpg"
+                                <img className="lazyload" src="/item3.jpg"
                                      srcSet=""
                                      alt="Инвестиции. " loading="lazy"/>
                             </div>
