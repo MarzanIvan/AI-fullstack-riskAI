@@ -41,9 +41,20 @@ services:
       S3_BUCKET: risk-model-datasets
     ports:
       - "9000:9000"
-    volumes:
-      - ./ML/models:/app/models
-      - ./ML/data:/app/data
+    networks:
+      - dev
+    restart: unless-stopped
+
+  predict_service:
+    build:
+      context: ./AI
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      S3_ENDPOINT: https://storage.yandexcloud.net
+      S3_BUCKET: risk-model-datasets
+    ports:
+      - "7000:7000"
     networks:
       - dev
     restart: unless-stopped
