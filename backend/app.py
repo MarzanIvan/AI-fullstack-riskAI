@@ -5,10 +5,15 @@ from typing import List, Optional
 import httpx
 import os
 
-AI_URL = os.getenv("AI_URL", "http://predict_service:7000")
-ML_URL = os.getenv("ML_URL", "http://ml_service:8000")
+ML_URL = os.getenv("ML_URL", "http://ml_service:8000") # access to datasets and modules
+AI_URL = os.getenv("AI_URL", "http://predict_service:7000") # access to modules
 
 app = FastAPI(title="api")
+
+"""
+    AI MODULE
+    communication to http://predict_service:7000
+"""
 
 class CreditRiskInput(BaseModel):
     income: float
@@ -54,29 +59,23 @@ class InsuranceRiskInput(BaseModel):
     vehicle: VehicleCharacteristics
     driver: DriverParameters
 
-async def call_ml(route: str, payload: dict):
-    async with httpx.AsyncClient(timeout=20) as client:
-        try:
-            response = await client.post(f"{AI_URL}/{route}", json=payload)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/analysis_credit/")
 async def credit_risk(data: CreditRiskInput):
-    return await call_ml("predict/credit", data.dict())
+    return await call_predict("predict/credit", data.dict())
 
 @app.post("/analysis_investment/")
 async def investment_risk(data: InvestmentRiskInput):
-    return await call_ml("predict/investment", data.dict())
+    return await call_predict("predict/investment", data.dict())
 
 @app.post("/analysis_insurance/")
 async def insurance_risk(data: InsuranceRiskInput):
-    return await call_ml("predict/insurance", data.dict())
+    return await call_predict("predict/insurance", data.dict())
 
-
-async def call_ml(route: str, payload: dict):
+"""
+    ML MODULE
+    communication to http://ml_service:8000
+"""
+async def call_predict(route: str, payload: dict):
     async with httpx.AsyncClient(timeout=20) as client:
         try:
             response = await client.post(f"{AI_URL}/{route}", json=payload)
@@ -95,17 +94,17 @@ async def call_training(route: str):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/ml/credit")
+@app.post("/ml_credit")
 async def train_credit():
     return await call_training("train/credit")
 
 
-@app.post("/ml/investment")
+@app.post("/ml_investment")
 async def train_investment():
     return await call_training("train/investment")
 
 
-@app.post("/ml/insurance")
+@app.post("/ml_insurance")
 async def train_insurance():
     return await call_training("train/insurance")
 
