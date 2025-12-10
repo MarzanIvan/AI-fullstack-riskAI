@@ -19,9 +19,10 @@ services:
     build:
       context: ./backend
       environment:
+      - AI_URL=http://predict_service:7000
       - ML_URL=http://ml_service:9000
     depends_on:
-      - ml_service
+      - predict_service
     networks:
       - dev
     dns:

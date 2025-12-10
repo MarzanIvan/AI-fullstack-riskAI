@@ -5,7 +5,8 @@ from typing import List, Optional
 import httpx
 import os
 
-ML_URL = os.getenv("ML_URL", "http://ml_service:9000")
+AI_URL = os.getenv("AI_URL", "http://predict_service:7000")
+ML_URL = os.getenv("ML_URL", "http://ml_service:8000")
 
 app = FastAPI(title="api")
 
@@ -56,25 +57,58 @@ class InsuranceRiskInput(BaseModel):
 async def call_ml(route: str, payload: dict):
     async with httpx.AsyncClient(timeout=20) as client:
         try:
-            response = await client.post(f"{ML_URL}/{route}", json=payload)
+            response = await client.post(f"{AI_URL}/{route}", json=payload)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/risk/credit")
+@app.post("/analysis_credit/")
 async def credit_risk(data: CreditRiskInput):
     return await call_ml("predict/credit", data.dict())
 
-@app.post("/risk/investment")
+@app.post("/analysis_investment/")
 async def investment_risk(data: InvestmentRiskInput):
     return await call_ml("predict/investment", data.dict())
 
-@app.post("/risk/insurance")
+@app.post("/analysis_insurance/")
 async def insurance_risk(data: InsuranceRiskInput):
     return await call_ml("predict/insurance", data.dict())
 
-# --- Endpoints ---
+
+async def call_ml(route: str, payload: dict):
+    async with httpx.AsyncClient(timeout=20) as client:
+        try:
+            response = await client.post(f"{AI_URL}/{route}", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+async def call_training(route: str):
+    async with httpx.AsyncClient(timeout=120) as client:
+        try:
+            response = await client.post(f"{ML_URL}/{route}")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ml/credit")
+async def train_credit():
+    return await call_training("train/credit")
+
+
+@app.post("/ml/investment")
+async def train_investment():
+    return await call_training("train/investment")
+
+
+@app.post("/ml/insurance")
+async def train_insurance():
+    return await call_training("train/insurance")
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "backend"}
