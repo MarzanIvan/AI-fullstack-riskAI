@@ -1,65 +1,133 @@
-# backend/app.py
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
 import os
-import httpx
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Any, Dict
+from typing import List, Optional, Dict
+import pandas as pd
+import numpy as np
+import joblib
 
-ML_URL = os.environ.get("ML_URL", "http://ml_service:9000")
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, GradientBoostingRegressor, IsolationForest
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
-app = FastAPI(title="Business Backend (Proxy)")
+import tensorflow as tf
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, Dropout, LSTM
+from tensorflow.keras.callbacks import EarlyStopping
 
-# --- Simple health ---
+from s3_client import download_dataset, upload_model
+
+MODEL_DIR = os.environ.get("MODEL_DIR", "./models")
+os.makedirs(MODEL_DIR, exist_ok=True)
+app = FastAPI(title="ML Service")
+
+# --- Schemas ---
+class TrainReq(BaseModel):
+    csv_path: str
+    target: Optional[str] = None
+    config: Optional[dict] = None
+
+class PredictReq(BaseModel):
+    features: List[List[float]]
+
+class TSReq(BaseModel):
+    csv_path: str
+    price_col: str = "close"
+    lookback: int = 60
+    epochs: int = 20
+
+class TSPredictReq(BaseModel):
+    series: List[List[float]]
+
+# --- Utils ---
+def ensure_df(path: str) -> pd.DataFrame:
+    if path.startswith("s3://"):
+        key = path.replace("s3://", "")
+        local_path = os.path.join("data", os.path.basename(key))
+        download_dataset(key, local_path)
+        path = local_path
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+    return pd.read_csv(path)
+
+def save_sklearn(obj, name: str):
+    p = os.path.join(MODEL_DIR, f"{name}.joblib")
+    joblib.dump(obj, p)
+    upload_model(p, f"models/{name}.joblib")
+    return p
+
+def load_sklearn(name: str):
+    p = os.path.join(MODEL_DIR, f"{name}.joblib")
+    if not os.path.exists(p):
+        raise FileNotFoundError(p)
+    return joblib.load(p)
+
+def save_keras(model, name: str):
+    p = os.path.join(MODEL_DIR, f"{name}.h5")
+    model.save(p)
+    upload_model(p, f"models/{name}.h5")
+    return p
+
+# --- Endpoints ---
 @app.get("/health")
-async def health():
-    return {"status": "ok", "service": "backend"}
+def health():
+    return {"status": "ok", "service": "ml_service"}
 
-# --- Proxy endpoints to ML service ---
-@app.post("/credit/train")
-async def credit_train(payload: Dict[str, Any]):
-    async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(f"{ML_URL}/train/credit", json=payload)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+# --- Credit train/predict ---
+@app.post("/train/credit")
+def train_credit(req: TrainReq):
+    df = ensure_df(req.csv_path)
+    if not req.target:
+        raise HTTPException(status_code=400, detail="target must be set")
+    if req.target not in df.columns:
+        raise HTTPException(status_code=400, detail=f"target {req.target} not found")
+    
+    X = df.drop(columns=[req.target])
+    y = df[req.target]
+    X_num = X.select_dtypes(include=[np.number]).fillna(0)
 
-@app.post("/credit/predict")
-async def credit_predict(payload: Dict[str, Any]):
-    async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(f"{ML_URL}/predict/credit", json=payload)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+    lr_pipe = Pipeline([("scaler", StandardScaler()), ("lr", LogisticRegression(max_iter=500))])
+    lr_pipe.fit(X_num, y)
+    save_sklearn(lr_pipe, "credit_logreg")
 
-@app.post("/invest/train")
-async def invest_train(payload: Dict[str, Any]):
-    async with httpx.AsyncClient(timeout=300) as client:
-        r = await client.post(f"{ML_URL}/train/invest", json=payload)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+    rf = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf.fit(X_num, y)
+    save_sklearn(rf, "credit_rf")
 
-@app.post("/invest/predict")
-async def invest_predict(payload: Dict[str, Any]):
-    async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(f"{ML_URL}/predict/invest", json=payload)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+    gb = GradientBoostingClassifier(n_estimators=200)
+    gb.fit(X_num, y)
+    save_sklearn(gb, "credit_gb")
 
-@app.get("/invest/var")
-async def invest_var(confidence: float = 0.95, horizon_days: int = 1, method: str = "historical"):
-    params = {"confidence": confidence, "horizon_days": horizon_days, "method": method}
-    async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.get(f"{ML_URL}/var", params=params)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+    input_dim = X_num.shape[1]
+    mlp = Sequential([
+        Dense(128, activation='relu', input_shape=(input_dim,)),
+        Dropout(0.3),
+        Dense(64, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+    mlp.compile(optimizer='adam', loss='binary_crossentropy', metrics=['AUC'])
+    mlp.fit(X_num.values, y.values, epochs=20, batch_size=64, validation_split=0.1, callbacks=[EarlyStopping(patience=3)], verbose=0)
+    save_keras(mlp, "credit_mlp")
 
-@app.post("/insurance/train")
-async def insurance_train(payload: Dict[str, Any]):
-    async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(f"{ML_URL}/train/insurance", json=payload)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+    if 'pd' in df.columns:
+        reg = GradientBoostingRegressor(n_estimators=200)
+        reg.fit(X_num, df['pd'])
+        save_sklearn(reg, "credit_pd_reg")
+    if 'lgd' in df.columns:
+        reg2 = GradientBoostingRegressor(n_estimators=200)
+        reg2.fit(X_num, df['lgd'])
+        save_sklearn(reg2, "credit_lgd_reg")
 
-@app.post("/insurance/predict")
-async def insurance_predict(payload: Dict[str, Any]):
-    async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(f"{ML_URL}/predict/insurance", json=payload)
-    return JSONResponse(status_code=r.status_code, content=r.json())
+    return {"status": "ok", "models": ["credit_logreg", "credit_rf", "credit_gb", "credit_mlp"]}
 
-# --- Generic error handler ---
-@app.exception_handler(Exception)
-async def generic_exc_handler(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"error": str(exc)})
+@app.post("/predict/credit")
+def predict_credit(req: PredictReq):
+    try:
+        model = load_sklearn("credit_logreg")
+    except FileNotFoundError:
+        raise HTTPException(status_code=400, detail="credit models not found; train first")
+    X = np.array(req.features)
+    probs = model.predict_proba(X)[:,1].tolist()
+    preds = (np.array(probs) >= 0.5).astype(int).tolist()
+    return {"probability": probs, "prediction": preds}

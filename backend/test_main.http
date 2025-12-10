@@ -1,11 +1,86 @@
-# Test your FastAPI endpoints
+### Backend Root
+GET http://localhost:8000/
 
-GET http://127.0.0.1:8000/
-Accept: application/json
+### Credit Risk Prediction (Proxy)
+POST http://localhost:8000/credit/predict
+Content-Type: application/json
 
-###
+{
+  "features": [
+    [650, 1, 120000, 3],
+    [520, 0, 45000, 8]
+  ]
+}
 
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
+### PD Prediction
+POST http://localhost:8000/credit/pd
+Content-Type: application/json
 
-###
+{
+  "features": [650, 120000, 3]
+}
+
+### LGD Prediction
+POST http://localhost:8000/credit/lgd
+Content-Type: application/json
+
+{
+  "features": [0.45, 200000, 5]
+}
+
+### Investment Forecast (LSTM)
+POST http://localhost:8000/invest/forecast
+Content-Type: application/json
+
+{
+  "prices": [100,102,101,103,105,104,106]
+}
+
+### VaR Calculation
+POST http://localhost:8000/invest/var
+Content-Type: application/json
+
+{
+  "portfolio": [0.4, 0.6],
+  "returns": [
+    [0.01, -0.02],
+    [0.03, 0.01],
+    [-0.01, -0.03]
+  ],
+  "alpha": 0.95
+}
+
+### CVaR Calculation
+POST http://localhost:8000/invest/cvar
+Content-Type: application/json
+
+{
+  "portfolio": [0.5, 0.5],
+  "returns": [
+    [0.01, 0.02],
+    [-0.03, -0.02],
+    [-0.05, 0.01]
+  ],
+  "alpha": 0.95
+}
+
+### Insurance Risk – Claims Frequency (Poisson)
+POST http://localhost:8000/insurance/claims
+Content-Type: application/json
+
+{
+  "lambda": 2.5,
+  "exposure": 1.0
+}
+
+### Insurance Risk – Severity (Gamma)
+POST http://localhost:8000/insurance/severity
+Content-Type: application/json
+
+{
+  "alpha": 3.0,
+  "beta": 1.2
+}
+
+### WebSocket Training Test (requires websocat)
+# websocat ws://localhost:8000/train/ws
