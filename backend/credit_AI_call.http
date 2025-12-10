@@ -1,0 +1,39 @@
+### Backend Root
+GET http://localhost:8000/
+
+### Анализ кредитного риска
+POST http://localhost:8000/analysis_credit
+Content-Type: application/json
+
+{
+  "full_name": "Иванов Иван Иванович",
+  "birth_date": "1990-04-15",
+  "citizenship": "Россия",
+  "capacity_status": "дееспособен",
+  "monthly_income": 120000,
+  "income_sources": ["основная работа", "фриланс"],
+  "loans": [
+    {
+      "loan_id": "CRD-001",
+      "loan_type": "consumer",
+      "open_date": "2021-02-10",
+      "close_date": null,
+      "loan_amount": 300000,
+      "remaining_balance": 120000,
+      "current_status": "active",
+      "max_delay_days": 10
+    },
+    {
+      "loan_id": "CRD-002",
+      "loan_type": "credit_card",
+      "open_date": "2019-08-19",
+      "close_date": "2023-04-01",
+      "loan_amount": 50000,
+      "remaining_balance": 0,
+      "current_status": "closed",
+      "max_delay_days": 5
+    }
+  ],
+  "requested_loan_amount": 400000,
+  "requested_loan_type": "consumer"
+}

@@ -1,0 +1,25 @@
+POST http://localhost:8000/analysis_investment
+Content-Type: application/json
+
+{
+  "portfolio_value": 1000000,
+  "asset_weights": [0.5, 0.3, 0.2],
+  "asset_types": ["stocks", "bonds", "ETF"],
+  "asset_volatility": [0.12, 0.05, 0.08],
+  "expected_return": [0.10, 0.04, 0.07],
+  "horizon_days": 90,
+  "risk_free_rate": 0.035,
+  "correlation_matrix": [
+    [1.0, 0.2, 0.5],
+    [0.2, 1.0, 0.3],
+    [0.5, 0.3, 1.0]
+  ],
+  "leverage_ratio": 1.0,
+  "liquidity_constraints": "No restrictions",
+  "stop_loss_limits": [0.1, 0.05, 0.08],
+  "historical_prices": [
+    [100, 101, 102, 104, 103],
+    [1000, 1005, 1008, 1012, 1010],
+    [50, 51, 52, 51.5, 52.2]
+  ]
+}

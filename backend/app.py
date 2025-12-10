@@ -1,6 +1,7 @@
 # backend/main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import List, Optional
 import httpx
 import os
 
@@ -14,17 +15,43 @@ class CreditRiskInput(BaseModel):
     age: int
     credit_score: int
 
+# --- Investment Risk ---
 class InvestmentRiskInput(BaseModel):
-    asset_volatility: float
-    expected_return: float
-    horizon_days: int
     portfolio_value: float
+    asset_weights: List[float]
+    asset_types: List[str]
+    asset_volatility: List[float]
+    expected_return: List[float]
+    horizon_days: int
+    risk_free_rate: float
+    correlation_matrix: List[List[float]]
+    leverage_ratio: Optional[float] = 1.0
+    liquidity_constraints: Optional[str] = "No restrictions"
+    stop_loss_limits: Optional[List[float]] = None
+    historical_prices: Optional[List[List[float]]] = None
+
+# --- Insurance Risk ---
+class VehicleCharacteristics(BaseModel):
+    make: str
+    model: str
+    year_of_manufacture: int
+    vehicle_value: float
+    engine_power: int
+    body_type: str
+    anti_theft_systems: Optional[List[str]] = None
+    tuning: Optional[bool] = False
+
+class DriverParameters(BaseModel):
+    driver_age: int
+    driving_experience: int
+    driver_gender: Optional[str] = None
+    region_registration: str
+    additional_drivers: Optional[int] = 0
+    marital_status: Optional[str] = None
 
 class InsuranceRiskInput(BaseModel):
-    claim_history: int
-    age: int
-    vehicle_value: float
-    region_code: str
+    vehicle: VehicleCharacteristics
+    driver: DriverParameters
 
 async def call_ml(route: str, payload: dict):
     async with httpx.AsyncClient(timeout=20) as client:

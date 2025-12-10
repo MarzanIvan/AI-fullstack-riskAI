@@ -1,0 +1,25 @@
+### Файл для теста: insurance_risk.http
+
+POST http://localhost:8000/analysis_insurance
+Content-Type: application/json
+
+{
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Camry",
+    "year_of_manufacture": 2020,
+    "vehicle_value": 1500000,
+    "engine_power": 180,
+    "body_type": "sedan",
+    "anti_theft_systems": ["immobilizer", "GPS"],
+    "tuning": true
+  },
+  "driver": {
+    "driver_age": 32,
+    "driving_experience": 10,
+    "driver_gender": "male",
+    "region_registration": "Moscow",
+    "additional_drivers": 1,
+    "marital_status": "married"
+  }
+}

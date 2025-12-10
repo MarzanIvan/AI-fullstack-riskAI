@@ -3,3 +3,5 @@ backend/.idea/
 frontend/.idea/
 frontend/node_modules/
 .env
+doc.docx
+~$doc.docx
