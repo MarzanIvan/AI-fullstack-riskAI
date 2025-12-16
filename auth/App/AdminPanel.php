@@ -84,7 +84,13 @@ input, select { padding: 8px; margin: 4px 0; }
     <td><?= $row['path'] ?></td>
     <td><?= $row['model_name'] ?? '-' ?></td>
     <td>
-        <button onclick="trainModel('<?= $row['id'] ?>', '<?= $row['model_name'] ?>')">Обучить</button>
+	<button onclick="trainModel(
+    '<?= $row['model_name'] ?>',
+    '<?= $row['name'] ?>',
+    '<?= $row['path'] ?>'
+)">
+    Обучить
+</button>
     </td>
 </tr>
 <?php endwhile; ?>
@@ -125,18 +131,28 @@ document.getElementById("addDatasetForm").addEventListener("submit", async (e) =
     if(result.success) location.reload();
 });
 
-// Вызов обучения модели через FastAPI
-async function trainModel(datasetId, modelName) {
+async function trainModel(modelName, datasetName, datasetPath) {
     let route = '';
     if (modelName.toLowerCase().includes('credit')) route = '/api/ml_credit';
     else if (modelName.toLowerCase().includes('investment')) route = '/api/ml_investment';
     else if (modelName.toLowerCase().includes('insurance')) route = '/api/ml_insurance';
-    else { alert('Неизвестная модель'); return; }
+    else {
+        alert('Неизвестная модель');
+        return;
+    }
 
     try {
-        const response = await fetch(route, { method: 'POST' });
+        const response = await fetch(route, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                dataset_name: datasetName,
+                dataset_path: datasetPath
+            })
+        });
+
         const result = await response.json();
-        alert("Обучение завершено: " + JSON.stringify(result));
+        alert("Обучение завершено:\n" + JSON.stringify(result, null, 2));
     } catch (err) {
         alert("Ошибка при обучении: " + err);
     }
