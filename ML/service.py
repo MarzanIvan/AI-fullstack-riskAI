@@ -31,9 +31,10 @@ CREDIT_DATASET_PATH = os.getenv("CREDIT_DATASET_PATH", "datasets/credit/credit.c
 INVESTMENT_DATASET_PATH = os.getenv("INVESTMENT_DATASET_PATH", "datasets/invest/invest.csv")
 INSURANCE_DATASET_PATH = os.getenv("INSURANCE_DATASET_PATH", "datasets/insurance/claims.csv")
 
-OUTPUT_MODEL_CREDIT = os.getenv("MODEL_CREDIT_PATH", "models/credit/best.joblib")
-OUTPUT_MODEL_INVEST = os.getenv("MODEL_INVEST_PATH", "models/invest/lstm.h5")
-OUTPUT_MODEL_INSURANCE = os.getenv("MODEL_INSURANCE_PATH", "models/insurance/insurance.joblib")
+OUTPUT_MODEL_CREDIT = os.getenv("MODEL_CREDIT_PATH", "models/credit/credit.joblib") # joblib from sklearn
+OUTPUT_MODEL_INVEST = os.getenv("MODEL_INVEST_PATH", "models/invest/invest.h5") # h5 models from keras and tensorflow
+OUTPUT_MODEL_INSURANCE = os.getenv("MODEL_INSURANCE_PATH", "models/insurance/insurance.joblib") # joblib from sklearn
+
 
 app = FastAPI(title="ML Service")
 
@@ -105,7 +106,6 @@ def train_credit_model():
     os.makedirs("models/credit", exist_ok=True)
     joblib.dump(best_model[0], "models/credit/best.joblib")
 
-    # Upload to S3
     s3.upload_file("models/credit/best.joblib", OUTPUT_MODEL_CREDIT)
 
     return {"type": best_model[2], "auc": best_model[1], "saved": OUTPUT_MODEL_CREDIT}

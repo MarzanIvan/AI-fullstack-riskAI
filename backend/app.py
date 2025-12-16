@@ -5,8 +5,8 @@ from typing import List, Optional
 import httpx
 import os
 
-ML_URL = os.getenv("ML_URL", "http://ml_service:8000") # access to datasets and modules
-AI_URL = os.getenv("AI_URL", "http://predict_service:7000") # access to modules
+ML_URL = os.getenv("ML_URL", "http://ml_service:9000") # access to datasets and models
+AI_URL = os.getenv("AI_URL", "http://predict_service:7000") # access to models
 
 app = FastAPI(title="api")
 
@@ -71,10 +71,6 @@ async def investment_risk(data: InvestmentRiskInput):
 async def insurance_risk(data: InsuranceRiskInput):
     return await call_predict("predict/insurance", data.dict())
 
-"""
-    ML MODULE
-    communication to http://ml_service:8000
-"""
 async def call_predict(route: str, payload: dict):
     async with httpx.AsyncClient(timeout=20) as client:
         try:
@@ -83,6 +79,12 @@ async def call_predict(route: str, payload: dict):
             return response.json()
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+"""
+    ML MODULE
+    communication to http://ml_service:9000
+"""
 
 
 async def call_training(route: str):

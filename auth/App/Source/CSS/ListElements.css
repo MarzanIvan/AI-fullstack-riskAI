@@ -1,0 +1,10 @@
+	.List{
+		font-size: 25px;
+		background-color: white;
+		overflow: scroll;
+		width: 100%;
+		padding: 25px;
+	}
+	.List *{
+		display: block;
+	}

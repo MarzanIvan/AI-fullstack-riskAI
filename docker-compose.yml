@@ -18,11 +18,12 @@ services:
   backend:
     build:
       context: ./backend
-      environment:
-      - AI_URL=http://predict_service:7000
-      - ML_URL=http://ml_service:9000
+    environment:
+      AI_URL: http://predict_service:7000
+      ML_URL: http://ml_service:9000
     depends_on:
       - predict_service
+      - ml_service
     networks:
       - dev
     dns:
@@ -40,10 +41,10 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       S3_ENDPOINT: https://storage.yandexcloud.net
       S3_BUCKET: risk-model-datasets
-    ports:
-      - "9000:9000"
     networks:
       - dev
+    ports:
+      - "9000:9000"
     restart: unless-stopped
 
   predict_service:
@@ -54,8 +55,6 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       S3_ENDPOINT: https://storage.yandexcloud.net
       S3_BUCKET: risk-model-datasets
-    ports:
-      - "7000:7000"
     networks:
       - dev
     restart: unless-stopped
@@ -63,5 +62,34 @@ services:
   frontend:
     build:
       context: ./frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - dev
+  php_env:
+    build:
+      context: ./auth
+    volumes:
+      - ./auth/App:/var/www/html
+    ports:
+      - "4000:80"
+    networks:
+      - dev
+
+  mysql_db:
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    networks:
+      - dev
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: always
+    ports:
+      - 4001:80
+    environment:
+      - PMA_ARBITRARY=1
     networks:
       - dev

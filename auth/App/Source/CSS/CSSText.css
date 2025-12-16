@@ -1,0 +1,65 @@
+
+	.unselect{
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		-khtml-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
+	}
+
+	a {
+    	text-decoration: none;
+    	color: black;
+		cursor: pointer;
+	}
+
+ 	a:hover{
+    	color: rgb(36, 106, 117);
+	}
+
+	body{
+		padding: 0;
+		margin: 0;
+		background-color: #f6fbfb;
+		font: normal normal normal 1rem/1.6 'Poppins', sans-serif;
+		font-size: 25px;
+	}
+
+	.button[type="submit"] {
+		text-align: center;
+   		cursor: pointer;
+		border: 1px rgb(146, 217, 219) solid;
+	}
+
+	.button[type="submit"]:hover {
+		color: #4d90aa;
+		background: rgb(255,255,255);
+		background: radial-gradient(circle, rgba(255,255,255,0.8715861344537815) 0%, rgba(213,251,255,1) 96%, rgba(250,254,255,1) 100%);
+	}
+
+	input[type="text"]{
+		border: 1px rgb(163, 241, 241) solid;
+	}
+
+	input[type="text"]:focus{
+		color: #1f4858;
+	}
+
+	input[type="password"]{
+		border: 1px rgb(163, 241, 241) solid;
+	}
+
+	input[type="password"]:focus{
+		color: #1f4858;
+	}
+	
+	.textar{
+   		display:block;
+   		scroll-behavior: auto;
+   		resize:none;
+	}
+
+	.SizeText *{
+		font-size: 25px;
+	}

@@ -12,6 +12,7 @@ import Projects from './Projects.jsx'
 import Credit from './credit.jsx'
 import Investment from './investment.jsx'
 import Insurance from "./insurance.jsx";
+import Auth from './AuthAdmin.jsx'
 
 createRoot(document.getElementById('root')).render(
     <StrictMode>
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')).render(
                 <Route path="/credit" element={<Credit />} />
                 <Route path="/investment" element={<Investment />} />
                 <Route path="/insurance" element={<Insurance />} />
+                <Route path="/authpanel" element={<Auth />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
         </BrowserRouter>
