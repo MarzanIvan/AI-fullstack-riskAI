@@ -5,7 +5,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from tensorflow.keras.models import load_model
-
+from typing import Optional
 from s3_client import S3Client
 
 app = FastAPI(title="predict")
@@ -200,18 +200,24 @@ def predict_insurance(req: InsurancePredictRequest):
 
 
 class InvestmentRiskInput(BaseModel):
-    portfolio_value: float
-    asset_weights: List[float]
-    asset_types: List[str]
-    asset_volatility: List[float]
-    expected_return: List[float]
-    horizon_days: int
-    risk_free_rate: float
-    correlation_matrix: List[List[float]]
-    leverage_ratio: Optional[float] = 1.0
-    liquidity_constraints: Optional[str] = "No restrictions"
-    stop_loss_limits: Optional[List[float]] = None
-    historical_prices: Optional[List[List[float]]] = None
+    # Данные о компании
+    company_name: str
+    company_category_list: Optional[str]
+    company_market: Optional[str]
+    company_country_code: Optional[str]
+    company_state_code: Optional[str]
+    company_region: Optional[str]
+    company_city: Optional[str]
+
+    # Данные о раунде инвестиций
+    funding_round_type: Optional[str]
+    funding_round_code: Optional[str]
+    funded_at: Optional[str]  # "DD/MM/YYYY"
+    funded_month: Optional[str]  # "YYYY-MM"
+    funded_quarter: Optional[str]  # "YYYY-QX"
+    funded_year: Optional[int]
+    raised_amount_usd: Optional[float]
+
 
 class InvestmentPredictResponse(BaseModel):
     predicted_next_investment: float
@@ -224,27 +230,18 @@ def predict_investment(req: InvestmentRiskInput):
     if investment_model is None:
         raise HTTPException(status_code=503, detail="investment model not loaded")
     try:
-        # Формируем входной массив для модели
-        # Пример: используем исторические цены или ожидаемую доходность
-        if req.historical_prices:
-            seq = np.array(req.historical_prices)  # shape: (assets, timesteps)
-            seq = seq.T  # если модель ожидает (timesteps, assets)
-            seq = seq[np.newaxis, :, :]  # batch dimension
-        else:
-            # fallback: используем expected_return * portfolio_value * weights
-            seq = np.array(req.expected_return) * np.array(req.asset_weights) * req.portfolio_value
-            seq = seq.reshape(1, -1, 1)
+        # Используем raised_amount_usd как вход модели
+        seq = np.array([[req.raised_amount_usd or 0]])
+        seq = seq.reshape(1, -1, 1)  # (batch=1, timesteps=1, features=1)
+
         pred = investment_model.predict(seq)[0, 0]
-        # Расчёт условного risk_score (например, std портфеля)
         risk_score = float(np.std(seq))
-        # Ожидаемая доходность портфеля
-        expected_portfolio_return = float(np.sum(np.array(req.expected_return) * np.array(req.asset_weights)))
+        expected_portfolio_return = float(pred)  # можно уточнить логику
 
         return InvestmentPredictResponse(
             predicted_next_investment=float(pred),
             expected_portfolio_return=expected_portfolio_return,
             risk_score=risk_score
         )
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")

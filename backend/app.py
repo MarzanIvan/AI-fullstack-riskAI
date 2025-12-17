@@ -88,24 +88,36 @@ async def insurance_risk(data: InsuranceRiskInput):
     )
 
 
-# --- Investment Risk ---
 class InvestmentRiskInput(BaseModel):
-    portfolio_value: float
-    asset_weights: List[float]
-    asset_types: List[str]
-    asset_volatility: List[float]
-    expected_return: List[float]
-    horizon_days: int
-    risk_free_rate: float
-    correlation_matrix: List[List[float]]
-    leverage_ratio: Optional[float] = 1.0
-    liquidity_constraints: Optional[str] = "No restrictions"
-    stop_loss_limits: Optional[List[float]] = None
-    historical_prices: Optional[List[List[float]]] = None
+    # Данные о компании
+    company_name: str
+    company_category_list: Optional[str]
+    company_market: Optional[str]
+    company_country_code: Optional[str]
+    company_state_code: Optional[str]
+    company_region: Optional[str]
+    company_city: Optional[str]
 
-@app.post("/analysis_investment/")
+    # Данные о раунде инвестиций
+    funding_round_type: Optional[str]
+    funding_round_code: Optional[str]
+    funded_at: Optional[str]  # "DD/MM/YYYY"
+    funded_month: Optional[str]  # "YYYY-MM"
+    funded_quarter: Optional[str]  # "YYYY-QX"
+    funded_year: Optional[int]
+    raised_amount_usd: Optional[float]
+
+class InvestmentPredictResponse(BaseModel):
+    predicted_next_investment: float
+    expected_portfolio_return: Optional[float] = None
+    risk_score: Optional[float] = None
+
+@app.post("/analysis_investment/",response_model=InvestmentPredictResponse)
 async def investment_risk(data: InvestmentRiskInput):
-    return await call_predict("predict/investment", data.dict())
+    return await call_predict(
+        "predict/investment",
+        data.dict()
+    )
 
 
 async def call_predict(route: str, payload: dict):
