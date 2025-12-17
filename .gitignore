@@ -8,3 +8,4 @@ doc.docx
 __pycache__/
 dist/
 datasetgen/datasets/*
+DATASETS/*

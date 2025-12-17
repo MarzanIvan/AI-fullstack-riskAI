@@ -1,4 +1,3 @@
-# backend/main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -16,33 +15,78 @@ app = FastAPI(title="api")
     AI MODULE
     communication to http://predict_service:7000
 """
-class Loan(BaseModel):
-    loan_id: str
-    loan_type: str # consumer | credit_card | mortgage | etc
-    open_date: date
-    close_date: Optional[date]
-    loan_amount: float
-    remaining_balance: float
-    current_status: str # active | closed | overdue
-    max_delay_days: int
 
 class CreditRiskInput(BaseModel):
-    full_name: str
-    birth_date: date
-    citizenship: str
-    capacity_status: str # дееспособен / ограничен
-    #income
-    monthly_income: float
-    income_sources: List[str]
-    #credit history
-    loans: List[Loan]
-    #loan request
-    requested_loan_amount: float
-    requested_loan_type: str
+    education: str
+    sex: str
+    age: int
+    car: str
+    car_type: str
+    decline_app_cnt: int
+    good_work: int
+    score_bki: float
+    bki_request_cnt: int
+    region_rating: int
+    home_address: int
+    work_address: int
+    income: float
+    sna: int
+    first_time: int
+    foreign_passport: str
+    app_date: str  # "01FEB2014"
 
-@app.post("/analysis_credit/")
+class CreditPredictResponse(BaseModel):
+    pd: float                   # Probability of Default
+    default_label: int           # 0 / 1
+    risk_level: str              # LOW / MEDIUM / HIGH
+
+@app.post("/analysis_credit/",response_model=CreditPredictResponse)
 async def credit_risk(data: CreditRiskInput):
-    return await call_predict("predict/credit", data.dict())
+    return await call_predict(
+        "predict/credit",
+        data.dict()
+    )
+
+
+class InsuranceRiskInput(BaseModel):
+    months_as_customer: int
+    age: int
+    policy_deductable: int
+    policy_annual_premium: float
+    umbrella_limit: int
+
+    incident_hour_of_the_day: int
+    number_of_vehicles_involved: int
+    bodily_injuries: int
+    witnesses: int
+
+    injury_claim: float
+    property_claim: float
+    vehicle_claim: float
+
+    policy_state: str
+    insured_sex: str
+    insured_education_level: str
+    incident_type: str
+    collision_type: str
+    incident_severity: str
+    authorities_contacted: str
+    property_damage: str
+    police_report_available: str
+    auto_make: str
+
+class InsurancePredictResponse(BaseModel):
+    fraud_probability: float
+    fraud_label: int
+    risk_level: str
+
+@app.post("/analysis_insurance/",response_model=InsurancePredictResponse)
+async def insurance_risk(data: InsuranceRiskInput):
+    return await call_predict(
+        "predict/insurance",
+        data.dict()
+    )
+
 
 # --- Investment Risk ---
 class InvestmentRiskInput(BaseModel):
@@ -63,32 +107,6 @@ class InvestmentRiskInput(BaseModel):
 async def investment_risk(data: InvestmentRiskInput):
     return await call_predict("predict/investment", data.dict())
 
-# --- Insurance Risk ---
-class VehicleCharacteristics(BaseModel):
-    make: str
-    model: str
-    year_of_manufacture: int
-    vehicle_value: float
-    engine_power: int
-    body_type: str
-    anti_theft_systems: Optional[List[str]] = None
-    tuning: Optional[bool] = False
-
-class DriverParameters(BaseModel):
-    driver_age: int
-    driving_experience: int
-    driver_gender: Optional[str] = None
-    region_registration: str
-    additional_drivers: Optional[int] = 0
-    marital_status: Optional[str] = None
-
-class InsuranceRiskInput(BaseModel):
-    vehicle: VehicleCharacteristics
-    driver: DriverParameters
-
-@app.post("/analysis_insurance/")
-async def insurance_risk(data: InsuranceRiskInput):
-    return await call_predict("predict/insurance", data.dict())
 
 async def call_predict(route: str, payload: dict):
     async with httpx.AsyncClient(timeout=20) as client:
