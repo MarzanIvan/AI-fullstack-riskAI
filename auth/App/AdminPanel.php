@@ -134,7 +134,7 @@ document.getElementById("addDatasetForm").addEventListener("submit", async (e) =
 async function trainModel(modelName, datasetName, datasetPath) {
     let route = '';
     if (modelName.toLowerCase().includes('credit')) route = '/api/ml_credit';
-    else if (modelName.toLowerCase().includes('investment')) route = '/api/ml_investment';
+    else if (modelName.toLowerCase().includes('invest')) route = '/api/ml_investment';
     else if (modelName.toLowerCase().includes('insurance')) route = '/api/ml_insurance';
     else {
         alert('Неизвестная модель');

@@ -19,7 +19,7 @@ df_invest = pd.DataFrame({
     "price": np.random.rand(200) * 100,
     "volume": np.random.rand(200) * 1000
 })
-df_invest.to_csv("datasets/investment.csv", index=False)
+df_invest.to_csv("datasets/invest.csv", index=False)
 
 # INSURANCE
 df_insurance = pd.DataFrame({
@@ -29,6 +29,6 @@ df_insurance = pd.DataFrame({
     "claims_count": np.random.randint(0, 5, size=100),
     "claim_amount": np.random.rand(100) * 10000
 })
-df_insurance.to_csv("datasets/insurance.csv", index=False)
+df_insurance.to_csv("datasets/claims.csv", index=False)
 
 print("✅ Test datasets created")

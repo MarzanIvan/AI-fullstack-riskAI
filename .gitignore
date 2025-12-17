@@ -7,3 +7,4 @@ doc.docx
 ~$doc.docx
 __pycache__/
 dist/
+datasetgen/datasets/*
