@@ -6,34 +6,113 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from tensorflow.keras.models import load_model
 from typing import Optional
-from s3_client import S3Client
+import traceback
+
+import boto3
+from botocore.client import Config
 
 app = FastAPI(title="predict")
 
+
+class S3Client:
+    def __init__(
+        self,
+        bucket: str,
+        endpoint: Optional[str] = "https://storage.yandexcloud.net",
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
+    ):
+        self.bucket = bucket
+
+        self.s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=aws_access_key_id or os.getenv("YANDEX_ACCESS_KEY_ID"),
+            aws_secret_access_key=aws_secret_access_key or os.getenv("YANDEX_SECRET_ACCESS_KEY"),
+            config=Config(signature_version="s3v4"),
+            region_name="ru-central1"
+        )
+    def read_json(self, key: str) -> pd.DataFrame:
+        """Read JSON file """
+        obj = self.s3.get_object(Bucket=self.bucket, Key=key)
+        return pd.read_json(io.BytesIO(obj["Body"].read()))
+
+    def read_parquet(self, key: str) -> pd.DataFrame:
+        """Read PARQUET file """
+        obj = self.s3.get_object(Bucket=self.bucket, Key=key)
+        return pd.read_parquet(io.BytesIO(obj["Body"].read()))
+
+    def download_model(self, key: str, local_path: str) -> str:
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        self.s3.download_file(self.bucket, key, local_path)
+        return local_path
+
+    def upload_model(self, local_path: str, key: str):
+        self.s3.upload_file(local_path, self.bucket, key)
+
+    def upload_file(self, local_path: str, key: str):
+        """Upload any file to S3."""
+        self.s3.upload_file(local_path, self.bucket, key)
+
+    def download_file(self, key: str, local_path: str):
+        """Download any file """
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        self.s3.download_file(self.bucket, key, local_path)
+
+    def list_files(self, prefix: str = ""):
+        """List objects in bucket."""
+        response = self.s3.list_objects_v2(Bucket=self.bucket, Prefix=prefix)
+        if "Contents" not in response:
+            return []
+        return [item["Key"] for item in response["Contents"]]
+
+OUTPUT_MODEL_CREDIT = os.getenv("MODEL_CREDIT_PATH", "models/credit/credit.joblib") # joblib from sklearn
+OUTPUT_MODEL_INVEST = os.getenv("MODEL_INVEST_PATH", "models/invest/invest.h5") # h5 models from keras and tensorflow
+OUTPUT_MODEL_INSURANCE = os.getenv("MODEL_INSURANCE_PATH", "models/insurance/insurance.joblib") # joblib from sklearn
 S3_BUCKET = os.getenv("S3_BUCKET", "risk-model-storage")
-
-OUTPUT_MODEL_CREDIT = os.getenv(
-    "MODEL_CREDIT_PATH",
-    "models/credit/credit.joblib"
-)
-
-OUTPUT_MODEL_INVEST = os.getenv(
-    "MODEL_INVEST_PATH",
-    "models/invest/invest.h5"
-)
-
-OUTPUT_MODEL_INSURANCE = os.getenv(
-    "MODEL_INSURANCE_PATH",
-    "models/insurance/insurance.joblib"
-)
 
 LOCAL_MODEL_DIR = "models"
 
-s3 = S3Client(bucket=S3_BUCKET)
+s3 = S3Client(
+    bucket=S3_BUCKET,
+    aws_access_key_id=os.getenv("YANDEX_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("YANDEX_SECRET_ACCESS_KEY"),
+)
 
-credit_model = None
-investment_model = None
-insurance_model = None
+
+def get_or_load_model(
+    model_ref: dict,
+    s3_key: str,
+    loader: str
+):
+    if model_ref["model"] is not None:
+        return model_ref["model"]
+
+    try:
+        local_path = os.path.join(LOCAL_MODEL_DIR, s3_key)
+
+        if not os.path.exists(local_path):
+            s3.download_model(
+                key=s3_key,
+                local_path=local_path
+            )
+
+        if loader == "joblib":
+            model_ref["model"] = joblib.load(local_path)
+        elif loader == "keras":
+            model_ref["model"] = load_model(local_path)
+        else:
+            raise ValueError(f"Unsupported loader type: {loader}")
+
+        return model_ref["model"]
+
+    except Exception as e:
+        raise RuntimeError(f"Model loading failed: {e}")
+
+
+credit_model_ref = {"model": None}
+insurance_model_ref = {"model": None}
+investment_model_ref = {"model": None}
 
 def load_model_from_s3(s3_key: str, loader: str):
     local_path = os.path.join(LOCAL_MODEL_DIR, s3_key)
@@ -50,26 +129,6 @@ def load_model_from_s3(s3_key: str, loader: str):
         return load_model(local_path)
 
     raise ValueError(f"Unsupported loader type: {loader}")
-
-
-@app.on_event("startup")
-def load_all_models():
-    global credit_model, investment_model, insurance_model
-    try:
-        credit_model = load_model_from_s3(
-            OUTPUT_MODEL_CREDIT,
-            loader="joblib"
-        )
-        investment_model = load_model_from_s3(
-            OUTPUT_MODEL_INVEST,
-            loader="keras"
-        )
-        insurance_model = load_model_from_s3(
-            OUTPUT_MODEL_INSURANCE,
-            loader="joblib"
-        )
-    except Exception as e:
-        raise RuntimeError(f"model loading failed: {e}")
 
 
 class CreditPredictRequest(BaseModel):
@@ -97,21 +156,16 @@ class CreditPredictResponse(BaseModel):
     default_label: int
     risk_level: str
 
-@app.post(
-    "/predict/credit",
-    response_model=CreditPredictResponse
-)
+@app.post("/predict/credit", response_model=CreditPredictResponse)
 def predict_credit(req: CreditPredictRequest):
-
-    if credit_model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Credit model not loaded"
-        )
-
     try:
+        model = get_or_load_model(
+            model_ref=credit_model_ref,
+            s3_key=OUTPUT_MODEL_CREDIT,
+            loader="joblib"
+        )
         X = pd.DataFrame([req.dict()])
-        pd_default = credit_model.predict_proba(X)[0, 1]
+        pd_default = model.predict_proba(X)[0, 1]
         default_label = int(pd_default >= 0.5)
 
         if pd_default < 0.2:
@@ -130,8 +184,9 @@ def predict_credit(req: CreditPredictRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Prediction error: {str(e)}"
+            detail=str(e)
         )
+
 
 class InsurancePredictRequest(BaseModel):
     months_as_customer: int
@@ -164,39 +219,35 @@ class InsurancePredictResponse(BaseModel):
     fraud_probability: float
     fraud_label: int
     risk_level: str
-
-@app.post(
-    "/predict/insurance",
-    response_model=InsurancePredictResponse
-)
+@app.post("/predict/insurance", response_model=InsurancePredictResponse)
 def predict_insurance(req: InsurancePredictRequest):
-    if insurance_model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Insurance model not loaded"
-        )
     try:
+        model = get_or_load_model(
+            model_ref=insurance_model_ref,
+            s3_key=OUTPUT_MODEL_INSURANCE,
+            loader="joblib"
+        )
         X = pd.DataFrame([req.dict()])
-        fraud_prob = insurance_model.predict_proba(X)[0, 1]
+        fraud_prob = model.predict_proba(X)[0, 1]
         fraud_label = int(fraud_prob >= 0.5)
+
         if fraud_prob < 0.3:
             risk_level = "LOW"
         elif fraud_prob < 0.6:
             risk_level = "MEDIUM"
         else:
             risk_level = "HIGH"
-
         return InsurancePredictResponse(
             fraud_probability=round(float(fraud_prob), 4),
             fraud_label=fraud_label,
             risk_level=risk_level
         )
-
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Insurance prediction error: {str(e)}"
+            detail=str(e)
         )
+
 
 
 class InvestmentRiskInput(BaseModel):
@@ -227,14 +278,16 @@ class InvestmentPredictResponse(BaseModel):
 
 @app.post("/predict/investment", response_model=InvestmentPredictResponse)
 def predict_investment(req: InvestmentRiskInput):
-    if investment_model is None:
-        raise HTTPException(status_code=503, detail="investment model not loaded")
     try:
-        # Используем raised_amount_usd как вход модели
+        model = get_or_load_model(
+            model_ref=investment_model_ref,
+            s3_key=OUTPUT_MODEL_INVEST,
+            loader="keras"
+        )
         seq = np.array([[req.raised_amount_usd or 0]])
         seq = seq.reshape(1, -1, 1)  # (batch=1, timesteps=1, features=1)
 
-        pred = investment_model.predict(seq)[0, 0]
+        pred = model.predict(seq)[0, 0]
         risk_score = float(np.std(seq))
         expected_portfolio_return = float(pred)  # можно уточнить логику
 

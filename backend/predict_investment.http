@@ -1,0 +1,20 @@
+POST http://localhost/api/analysis_investment/
+Content-Type: application/json
+
+{
+  "company_name": "TechNova",
+  "company_category_list": "Software|AI",
+  "company_market": "Enterprise Software",
+  "company_country_code": "USA",
+  "company_state_code": "CA",
+  "company_region": "San Francisco Bay Area",
+  "company_city": "San Francisco",
+
+  "funding_round_type": "venture",
+  "funding_round_code": "A",
+  "funded_at": "18/09/2025",
+  "funded_month": "2025-09",
+  "funded_quarter": "2025-Q3",
+  "funded_year": 2025,
+  "raised_amount_usd": 7500000
+}

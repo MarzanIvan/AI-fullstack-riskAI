@@ -1,0 +1,30 @@
+POST http://localhost:9000/predict/insurance
+Content-Type: application/json
+
+{
+  "months_as_customer": 48,
+  "age": 41,
+  "policy_deductable": 1000,
+  "policy_annual_premium": 1250.75,
+  "umbrella_limit": 0,
+
+  "incident_hour_of_the_day": 14,
+  "number_of_vehicles_involved": 2,
+  "bodily_injuries": 1,
+  "witnesses": 1,
+
+  "injury_claim": 5000,
+  "property_claim": 12000,
+  "vehicle_claim": 8000,
+
+  "policy_state": "CA",
+  "insured_sex": "MALE",
+  "insured_education_level": "Masters",
+  "incident_type": "Multi-vehicle Collision",
+  "collision_type": "Rear Collision",
+  "incident_severity": "Major Damage",
+  "authorities_contacted": "Police",
+  "property_damage": "YES",
+  "police_report_available": "YES",
+  "auto_make": "Toyota"
+}

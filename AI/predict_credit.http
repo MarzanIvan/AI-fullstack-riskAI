@@ -1,0 +1,22 @@
+POST http://localhost:9000/predict/credit
+Content-Type: application/json
+
+{
+  "education": "higher",
+  "sex": "M",
+  "age": 34,
+  "car": "yes",
+  "car_type": "foreign",
+  "decline_app_cnt": 0,
+  "good_work": 1,
+  "score_bki": 0.72,
+  "bki_request_cnt": 2,
+  "region_rating": 3,
+  "home_address": 1,
+  "work_address": 1,
+  "income": 95000,
+  "sna": 1,
+  "first_time": 0,
+  "foreign_passport": "yes",
+  "app_date": "2025-12-17"
+}

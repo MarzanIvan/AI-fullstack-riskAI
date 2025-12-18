@@ -30,47 +30,41 @@ from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_sco
 from sklearn.base import BaseEstimator, TransformerMixin
 
 class CreditFeatureEngineer(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        pass
-
     def fit(self, X, y=None):
-        if isinstance(X, pd.DataFrame):
-            self.mean_income_region = X.groupby('region_rating')['income'].transform('mean')
-            self.mean_income_age = X.groupby('age')['income'].transform('mean')
-            self.mean_bki_age = X.groupby('age')['score_bki'].transform('mean')
+        self.region_income_mean_ = (
+            X.groupby("region_rating")["income"].mean().to_dict()
+        )
+        self.age_income_mean_ = (
+            X.groupby("age")["income"].mean().to_dict()
+        )
+        self.age_bki_mean_ = (
+            X.groupby("age")["score_bki"].mean().to_dict()
+        )
         return self
 
     def transform(self, X):
-        if not isinstance(X, pd.DataFrame):
-            X = pd.DataFrame(X, columns=X.columns if hasattr(X, 'columns') else None)
-
         df = X.copy()
 
-        # Новые признаки
-        df['income_to_request'] = df['income'] / (df['bki_request_cnt'] + 1)
+        df["income_to_request"] = df["income"] / (df["bki_request_cnt"] + 1)
 
-        # Если расчет средних нужен на этапе трансформации
-        if hasattr(self, 'mean_income_region'):
-            df['mean_income_region'] = self.mean_income_region
-        else:
-            df['mean_income_region'] = df['income']  # fallback
+        df["mean_income_region"] = df["region_rating"].map(
+            self.region_income_mean_
+        ).fillna(df["income"])
 
-        if hasattr(self, 'mean_income_age'):
-            df['mean_income_age'] = self.mean_income_age
-        else:
-            df['mean_income_age'] = df['income']  # fallback
+        df["mean_income_age"] = df["age"].map(
+            self.age_income_mean_
+        ).fillna(df["income"])
 
-        if hasattr(self, 'mean_bki_age'):
-            df['mean_bki_age'] = self.mean_bki_age
-        else:
-            df['mean_bki_age'] = df['score_bki']  # fallback
+        df["mean_bki_age"] = df["age"].map(
+            self.age_bki_mean_
+        ).fillna(df["score_bki"])
 
-        # Преобразование категориальных признаков
-        df['sex'] = df['sex'].map({'M': 1, 'F': 0}).fillna(0)
-        df['good_work'] = df['good_work'].astype(int)
-        df['first_time'] = df['first_time'].astype(int)
+        df["sex"] = df["sex"].map({"M": 1, "F": 0}).fillna(0)
+        df["good_work"] = df["good_work"].astype(int)
+        df["first_time"] = df["first_time"].astype(int)
 
         return df
+
 
 
 # Числовые и категориальные признаки
@@ -84,16 +78,10 @@ NUM_COLS = [
 CAT_COLS = [
     'education', 'sex', 'car', 'car_type',
     'good_work', 'home_address', 'work_address',
-    'foreign_passport', 'sna', 'month'
+    'foreign_passport', 'sna'
 ]
 
 def build_credit_pipeline():
-    """
-    Создает sklearn Pipeline для кредитного скоринга:
-    1) Инжиниринг признаков (CreditFeatureEngineer)
-    2) Препроцессинг (OneHotEncoder + passthrough)
-    3) Логистическая регрессия
-    """
     preprocessor = ColumnTransformer(
         transformers=[
             ('cat', OneHotEncoder(handle_unknown='ignore', drop='first'), CAT_COLS),
@@ -104,7 +92,7 @@ def build_credit_pipeline():
     model = LogisticRegression(
         class_weight='balanced',
         C=500.5,
-        max_iter=400,
+        max_iter=1000,
         penalty='l2',
         solver='lbfgs'
     )
@@ -134,15 +122,19 @@ s3 = S3Client(
     aws_secret_access_key=os.getenv("YANDEX_SECRET_ACCESS_KEY"),
 )
 
-def load_dataset(s3_path: str):
+def load_dataset(s3_path: str, *, csv_sep: str = ";"):
     if s3_path.endswith(".csv"):
-        return s3.read_csv(s3_path)
+        return s3.read_csv(
+            s3_path,
+            sep=csv_sep
+        )
     elif s3_path.endswith(".json"):
         return s3.read_json(s3_path)
     elif s3_path.endswith(".parquet"):
         return s3.read_parquet(s3_path)
     else:
         raise ValueError(f"Unsupported dataset format: {s3_path}")
+
 
 class TrainRequest(BaseModel):
     dataset_name: str
@@ -153,15 +145,21 @@ def train_credit(req: TrainRequest):
     try:
         return train_credit_model(req.dataset_name, req.dataset_path)
     except Exception as e:
-        raise HTTPException(500, str(e))
-
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        raise HTTPException(500, tb)
 
 @app.post("/train/investment")
 def train_investment(req: TrainRequest):
     try:
         return train_investment_model(req.dataset_name, req.dataset_path)
     except Exception as e:
-        raise HTTPException(500, str(e))
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        raise HTTPException(500, tb)
+
 
 
 @app.post("/train/insurance")
@@ -169,7 +167,11 @@ def train_insurance(req: TrainRequest):
     try:
         return train_insurance_model(req.dataset_name, req.dataset_path)
     except Exception as e:
-        raise HTTPException(500, str(e))
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        raise HTTPException(500, tb)
+
 
 
 @app.get("/health")
@@ -177,7 +179,10 @@ def health():
     return {"status": "ok", "service": "training-service"}
 
 def train_credit_model(dataset_name: str, dataset_path: str):
-    df = load_dataset(dataset_path)
+    df = load_dataset(
+        dataset_path,
+        csv_sep=","
+    )
 
     y = df['default']
     X = df.drop(columns=['default', 'client_id'])
@@ -203,97 +208,97 @@ def train_credit_model(dataset_name: str, dataset_path: str):
         "f1": f1_score(y_test, y_pred),
         "logloss": log_loss(y_test, y_pred)
     }
+    
+    local_dir = "models/credit"
+    os.makedirs(local_dir, exist_ok=True)
 
-    model_path = f"ml/models/credit_{dataset_name}_v1.joblib"
-    joblib.dump(pipeline, model_path)
-
+    model_filename = f"credit.joblib"
+    local_path = os.path.join(local_dir, model_filename)
+    s3_key = f"models/credit/{model_filename}"
+    joblib.dump(pipeline, local_path)
+    s3.upload_file(
+        local_path=local_path,
+        key=s3_key
+    )
     return {
-        "model_path": model_path,
-        "metrics": metrics,
-        "features_count": pipeline.named_steps['preprocess'].get_feature_names_out().shape[0]
+        "model_path": local_path,
+        "s3_key": s3_key,
+        "train rows": len(X_train),
+        "test rows": len(X_test)
     }
 
 def train_investment_model(dataset_name: str, dataset_path: str):
-    df = load_dataset(dataset_path)
+    try:
+        df = load_dataset(
+            dataset_path,
+            csv_sep=";"
+        )
 
-    df['raised_amount_usd'] = (
-        df['raised_amount_usd']
-        .astype(str)
-        .str.replace(' ', '')  # удаляем неразрывный пробел
-        .replace('', '0')
-        .astype(float)
-    )
-    df['funded_at'] = pd.to_datetime(df['funded_at'], errors='coerce')
-    df = df.dropna(subset=['funded_at'])
-    df = df.sort_values('funded_at')
+        df["raised_amount_usd"] = (
+            df["raised_amount_usd"]
+            .astype(str)
+            .str.replace(r"[^\d.]", "", regex=True)
+        )
 
-    prices = df['raised_amount_usd'].values.reshape(-1, 1)
-    seq_length = 20
-    X_seq, y_seq = [], []
+        df["raised_amount_usd"] = pd.to_numeric(
+            df["raised_amount_usd"],
+            errors="coerce"
+        ).fillna(0.0)
 
-    for i in range(len(prices) - seq_length):
-        X_seq.append(prices[i:i+seq_length])
-        y_seq.append(prices[i+seq_length])
+        df["funded_at"] = pd.to_datetime(
+            df["funded_at"],
+            errors="coerce",
+            dayfirst=True
+        )
 
-    X_seq, y_seq = np.array(X_seq), np.array(y_seq)
-    model = Sequential([
-        LSTM(64, input_shape=(seq_length, 1), activation='tanh'),
-        Dense(1)
-    ])
-    model.compile(optimizer=Adam(0.001), loss='mse')
-    model.fit(X_seq, y_seq, epochs=10, batch_size=32, verbose=1)
+        df = df.dropna(subset=["funded_at"])
+        df = df.sort_values("funded_at")
 
-    local_path = f"models/invest/invest_{dataset_name}_v1.h5"
-    os.makedirs("models/invest", exist_ok=True)
-    model.save(local_path)
-    s3.upload_file(local_path, local_path)
+        prices = df["raised_amount_usd"].values.reshape(-1, 1)
 
-    y_pred = model.predict(X_seq)
-    mse = np.mean((y_pred.flatten() - y_seq.flatten()) ** 2)
+        seq_length = 20
+        if len(prices) <= seq_length:
+            raise ValueError(
+                f"Not enough data for LSTM: {len(prices)} rows"
+            )
 
-    return {
-        "model": "investment_lstm",
-        "dataset": dataset_name,
-        "samples": len(X_seq),
-        "mse": float(mse),
-        "saved": local_path
-    }
+        X_seq, y_seq = [], []
+        for i in range(len(prices) - seq_length):
+            X_seq.append(prices[i:i+seq_length])
+            y_seq.append(prices[i+seq_length])
 
+        X_seq = np.array(X_seq)
+        y_seq = np.array(y_seq)
 
+        model = Sequential([
+            LSTM(64, input_shape=(seq_length, 1), activation="tanh"),
+            Dense(1)
+        ])
 
-def train_investment_model_old(dataset_name: str, dataset_path: str):
-    df = load_dataset(dataset_path)
+        model.compile(optimizer=Adam(0.001), loss="mse")
+        model.fit(X_seq, y_seq, epochs=3, batch_size=64, verbose=1)
 
-    prices = df["price"].values.reshape(-1, 1)
+        local_path = "models/invest/invest.h5"
+        s3_key = "models/invest/invest.h5"
 
-    seq_length = 20
-    X_seq, y_seq = [], []
+        os.makedirs("models/invest", exist_ok=True)
+        model.save(local_path)
 
-    for i in range(len(prices) - seq_length):
-        X_seq.append(prices[i:i+seq_length])
-        y_seq.append(prices[i+seq_length])
+        s3.upload_file(local_path=local_path, key=s3_key)
 
-    X_seq, y_seq = np.array(X_seq), np.array(y_seq)
+        return {
+            "model": "investment_lstm",
+            "dataset": dataset_name,
+            "train rows": int(len(X_seq)),
+            "saved": s3_key
+        }
 
-    model = Sequential([
-        LSTM(64, input_shape=(seq_length, 1)),
-        Dense(1)
-    ])
-    model.compile(optimizer=Adam(0.001), loss="mse")
-    model.fit(X_seq, y_seq, epochs=5, batch_size=32)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        raise RuntimeError(tb)
 
-    local_path = f"models/invest/{dataset_name}.h5"
-    os.makedirs("models/invest", exist_ok=True)
-    model.save(local_path)
-
-    s3.upload_file(local_path, local_path)
-
-    return {
-        "model": "investment",
-        "dataset": dataset_name,
-        "samples": len(X_seq),
-        "saved": local_path
-    }
 
 policy_features = [
     "months_as_customer",
@@ -342,8 +347,12 @@ def build_insurance_pipeline():
 
     categorical_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
+        ("encoder", OneHotEncoder(
+            handle_unknown="ignore",
+            sparse_output=False
+        ))
     ])
+
 
     preprocess = ColumnTransformer([
         ("num", numeric_pipeline, numeric_features),
@@ -365,7 +374,10 @@ def build_insurance_pipeline():
 
 
 def train_insurance_model(dataset_name: str, dataset_path: str):
-    df = load_dataset(dataset_path)
+    df = load_dataset(
+        dataset_path,
+        csv_sep=";"
+    )
 
     df["fraud_reported"] = df["fraud_reported"].map({"Y": 1, "N": 0})
 
@@ -401,18 +413,18 @@ def train_insurance_model(dataset_name: str, dataset_path: str):
         "fraud_rate": float(y.mean())
     }
 
-    local_path = f"models/insurance/insurance_{dataset_name}_v1.joblib"
+    local_path = f"models/insurance/insurance.joblib"
     os.makedirs("models/insurance", exist_ok=True)
     joblib.dump(pipeline, local_path)
 
     s3.upload_file(local_path, local_path)
-
+    
     return {
         "model": "insurance_fraud",
         "dataset": dataset_name,
-        "saved": local_path,
-        "metrics": metrics,
-        "features": pipeline.named_steps["preprocess"].get_feature_names_out().shape[0]
+        "train rows": len(X_train),
+        "test rows": len(X_test),
+        "saved": local_path
     }
 
 

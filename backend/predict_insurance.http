@@ -1,0 +1,30 @@
+POST http://localhost/api/analysis_insurance/
+Content-Type: application/json
+
+{
+  "months_as_customer": 48,
+  "age": 42,
+  "policy_deductable": 500,
+  "policy_annual_premium": 1200.5,
+  "umbrella_limit": 0,
+
+  "incident_hour_of_the_day": 14,
+  "number_of_vehicles_involved": 2,
+  "bodily_injuries": 1,
+  "witnesses": 2,
+
+  "injury_claim": 5000,
+  "property_claim": 3000,
+  "vehicle_claim": 7000,
+
+  "policy_state": "CA",
+  "insured_sex": "MALE",
+  "insured_education_level": "Masters",
+  "incident_type": "Single Vehicle Collision",
+  "collision_type": "Rear Collision",
+  "incident_severity": "Minor Damage",
+  "authorities_contacted": "Police",
+  "property_damage": "YES",
+  "police_report_available": "YES",
+  "auto_make": "Toyota"
+}

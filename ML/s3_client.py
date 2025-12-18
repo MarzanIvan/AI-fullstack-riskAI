@@ -24,10 +24,23 @@ class S3Client:
             config=Config(signature_version="s3v4"),
             region_name="ru-central1"
         )
-    def read_csv(self, key: str) -> pd.DataFrame:
-        """Read CSV file """
+    def read_csv(
+        self,
+        key: str,
+        sep: str = ";",
+        encoding: str = "utf-8"
+    ) -> pd.DataFrame:
         obj = self.s3.get_object(Bucket=self.bucket, Key=key)
-        return pd.read_csv(io.BytesIO(obj["Body"].read()), encoding="utf-8")
+        df = pd.read_csv(
+            io.BytesIO(obj["Body"].read()),
+            sep=sep,
+            encoding=encoding,
+            engine="python",
+            skipinitialspace=True
+        )
+        df.columns = df.columns.str.strip()
+        return df
+
 
     def read_json(self, key: str) -> pd.DataFrame:
         """Read JSON file """
