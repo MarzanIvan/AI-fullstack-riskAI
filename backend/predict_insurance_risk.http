@@ -1,0 +1,30 @@
+POST http://localhost/api/analysis_insurance/
+Content-Type: application/json
+
+{
+  "months_as_customer": 3,
+  "age": 22,
+  "policy_deductable": 200,
+  "policy_annual_premium": 3200,
+  "umbrella_limit": 0,
+
+  "incident_hour_of_the_day": 3,
+  "number_of_vehicles_involved": 3,
+  "bodily_injuries": 2,
+  "witnesses": 0,
+
+  "injury_claim": 45000,
+  "property_claim": 35000,
+  "vehicle_claim": 60000,
+
+  "policy_state": "CA",
+  "insured_sex": "MALE",
+  "insured_education_level": "High School",
+  "incident_type": "Single Vehicle Collision",
+  "collision_type": "Side Collision",
+  "incident_severity": "Total Loss",
+  "authorities_contacted": "None",
+  "property_damage": "NO",
+  "police_report_available": "NO",
+  "auto_make": "BMW"
+}

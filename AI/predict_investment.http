@@ -2,19 +2,19 @@ POST http://localhost:9000/predict/investment
 Content-Type: application/json
 
 {
-  "company_name": "RiskAI Technologies",
-  "company_category_list": "FinTech|AI",
-  "company_market": "Finance",
-  "company_country_code": "US",
+  "company_name": "TechNova",
+  "company_category_list": "Software|AI",
+  "company_market": "Enterprise Software",
+  "company_country_code": "USA",
   "company_state_code": "CA",
-  "company_region": "Silicon Valley",
+  "company_region": "San Francisco Bay Area",
   "company_city": "San Francisco",
-
   "funding_round_type": "venture",
   "funding_round_code": "A",
-  "funded_at": "17/12/2025",
-  "funded_month": "2025-12",
-  "funded_quarter": "2025-Q4",
+  "funded_at": "18/09/2025",
+  "funded_month": "2025-09",
+  "funded_quarter": "2025-Q3",
   "funded_year": 2025,
-  "raised_amount_usd": 2500000
+  "raised_amount_usd": 1500000
 }
+

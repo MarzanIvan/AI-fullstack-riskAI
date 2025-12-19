@@ -68,17 +68,19 @@ class CreditFeatureEngineer(BaseEstimator, TransformerMixin):
 
 
 # Числовые и категориальные признаки
+CAT_COLS = [
+    'education', 'car', 'car_type',
+    'foreign_passport'
+]
+
 NUM_COLS = [
     'age', 'decline_app_cnt', 'score_bki',
     'bki_request_cnt', 'income', 'first_time',
     'region_rating', 'mean_income_region',
-    'mean_income_age', 'mean_bki_age', 'income_to_request'
-]
-
-CAT_COLS = [
-    'education', 'sex', 'car', 'car_type',
-    'good_work', 'home_address', 'work_address',
-    'foreign_passport', 'sna'
+    'mean_income_age', 'mean_bki_age',
+    'income_to_request',
+    'sex', 'good_work', 'home_address',
+    'work_address', 'sna'
 ]
 
 def build_credit_pipeline():

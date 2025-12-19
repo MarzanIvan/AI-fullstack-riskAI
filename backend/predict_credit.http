@@ -2,21 +2,21 @@ POST http://localhost/api/analysis_credit/
 Content-Type: application/json
 
 {
-  "education": "Higher education",
+  "education": "higher",
   "sex": "M",
-  "age": 35,
-  "car": "Y",
-  "car_type": "Foreign",
+  "age": 32,
+  "car": "yes",
+  "car_type": "foreign",
   "decline_app_cnt": 0,
   "good_work": 1,
-  "score_bki": 720.5,
-  "bki_request_cnt": 2,
-  "region_rating": 3,
+  "score_bki": 790,
+  "bki_request_cnt": 1,
+  "region_rating": 1,
   "home_address": 1,
   "work_address": 1,
-  "income": 120000,
-  "sna": 2,
-  "first_time": 1,
-  "foreign_passport": "Y",
-  "app_date": "01FEB2025"
+  "income": 150000,
+  "sna": 1,
+  "first_time": 0,
+  "foreign_passport": "no",
+  "app_date": "01FEB2014"
 }

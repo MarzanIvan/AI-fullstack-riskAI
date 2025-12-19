@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from tensorflow.keras.models import load_model
 from typing import Optional
 import traceback
-
 import boto3
 from botocore.client import Config
 
@@ -80,35 +79,60 @@ s3 = S3Client(
 )
 
 
-def get_or_load_model(
-    model_ref: dict,
-    s3_key: str,
-    loader: str
-):
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class CreditFeatureEngineer(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        self.region_income_mean_ = (
+            X.groupby("region_rating")["income"].mean().to_dict()
+        )
+        self.age_income_mean_ = (
+            X.groupby("age")["income"].mean().to_dict()
+        )
+        self.age_bki_mean_ = (
+            X.groupby("age")["score_bki"].mean().to_dict()
+        )
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+
+        df["income_to_request"] = df["income"] / (df["bki_request_cnt"] + 1)
+
+        df["mean_income_region"] = df["region_rating"].map(
+            self.region_income_mean_
+        ).fillna(df["income"])
+
+        df["mean_income_age"] = df["age"].map(
+            self.age_income_mean_
+        ).fillna(df["income"])
+
+        df["mean_bki_age"] = df["age"].map(
+            self.age_bki_mean_
+        ).fillna(df["score_bki"])
+
+        df["sex"] = df["sex"].map({"M": 1, "F": 0}).fillna(0)
+        df["good_work"] = df["good_work"].astype(int)
+        df["first_time"] = df["first_time"].astype(int)
+
+        return df
+
+
+def get_or_load_model(model_ref, local_path: str, model_type: str):
     if model_ref["model"] is not None:
         return model_ref["model"]
 
-    try:
-        local_path = os.path.join(LOCAL_MODEL_DIR, s3_key)
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-        if not os.path.exists(local_path):
-            s3.download_model(
-                key=s3_key,
-                local_path=local_path
-            )
+    if not os.path.exists(local_path):
+        s3.download_file(local_path, local_path)
 
-        if loader == "joblib":
-            model_ref["model"] = joblib.load(local_path)
-        elif loader == "keras":
-            model_ref["model"] = load_model(local_path)
-        else:
-            raise ValueError(f"Unsupported loader type: {loader}")
+    if model_type == "keras":
+        model_ref["model"] = load_model(local_path, compile=False)
+    else:
+        model_ref["model"] = joblib.load(local_path)
 
-        return model_ref["model"]
-
-    except Exception as e:
-        raise RuntimeError(f"Model loading failed: {e}")
-
+    return model_ref["model"]
 
 credit_model_ref = {"model": None}
 insurance_model_ref = {"model": None}
@@ -160,32 +184,31 @@ class CreditPredictResponse(BaseModel):
 def predict_credit(req: CreditPredictRequest):
     try:
         model = get_or_load_model(
-            model_ref=credit_model_ref,
-            s3_key=OUTPUT_MODEL_CREDIT,
-            loader="joblib"
+            credit_model_ref,
+            OUTPUT_MODEL_CREDIT,
+            "joblib"
         )
-        X = pd.DataFrame([req.dict()])
-        pd_default = model.predict_proba(X)[0, 1]
+        data = req.dict()
+        data.pop("app_date", None)
+        X = pd.DataFrame([data])
+        pd_default = float(model.predict_proba(X)[0, 1])
         default_label = int(pd_default >= 0.5)
-
-        if pd_default < 0.2:
-            risk_level = "LOW"
-        elif pd_default < 0.5:
-            risk_level = "MEDIUM"
-        else:
-            risk_level = "HIGH"
+        risk_level = (
+            "LOW" if pd_default < 0.2
+            else "MEDIUM" if pd_default < 0.5
+            else "HIGH"
+        )
 
         return CreditPredictResponse(
-            pd=round(float(pd_default), 4),
+            pd=round(pd_default, 4),
             default_label=default_label,
             risk_level=risk_level
         )
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(500, "Credit prediction failed")
+
 
 
 class InsurancePredictRequest(BaseModel):
@@ -219,38 +242,41 @@ class InsurancePredictResponse(BaseModel):
     fraud_probability: float
     fraud_label: int
     risk_level: str
+
 @app.post("/predict/insurance", response_model=InsurancePredictResponse)
 def predict_insurance(req: InsurancePredictRequest):
     try:
         model = get_or_load_model(
-            model_ref=insurance_model_ref,
-            s3_key=OUTPUT_MODEL_INSURANCE,
-            loader="joblib"
+            insurance_model_ref,
+            OUTPUT_MODEL_INSURANCE,
+            "joblib"
         )
+
         X = pd.DataFrame([req.dict()])
-        fraud_prob = model.predict_proba(X)[0, 1]
+        fraud_prob = float(model.predict_proba(X)[0, 1])
         fraud_label = int(fraud_prob >= 0.5)
 
-        if fraud_prob < 0.3:
-            risk_level = "LOW"
-        elif fraud_prob < 0.6:
-            risk_level = "MEDIUM"
-        else:
-            risk_level = "HIGH"
+        risk_level = (
+            "LOW" if fraud_prob < 0.3
+            else "MEDIUM" if fraud_prob < 0.6
+            else "HIGH"
+        )
+
         return InsurancePredictResponse(
-            fraud_probability=round(float(fraud_prob), 4),
+            fraud_probability=round(fraud_prob, 4),
             fraud_label=fraud_label,
             risk_level=risk_level
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(500, "Insurance prediction failed")
 
 
+SEQ_LENGTH = 20
 
-class InvestmentRiskInput(BaseModel):
+
+class InvestmentRiskInpu(BaseModel):
     # Данные о компании
     company_name: str
     company_category_list: Optional[str]
@@ -270,31 +296,122 @@ class InvestmentRiskInput(BaseModel):
     raised_amount_usd: Optional[float]
 
 
-class InvestmentPredictResponse(BaseModel):
+class InvestmentPredictRespons(BaseModel):
     predicted_next_investment: float
     expected_portfolio_return: Optional[float] = None
     risk_score: Optional[float] = None
+
+SEQ_LENGTH = 20
+
+class InvestmentRiskInput(BaseModel):
+    company_name: str
+    company_category_list: Optional[str] = None
+    company_market: Optional[str] = None
+    company_country_code: Optional[str] = None
+    company_state_code: Optional[str] = None
+    company_region: Optional[str] = None
+    company_city: Optional[str] = None
+
+    funding_round_type: Optional[str] = None
+    funding_round_code: Optional[str] = None
+    funded_at: Optional[str] = None
+    funded_month: Optional[str] = None
+    funded_quarter: Optional[str] = None
+    funded_year: Optional[int] = None
+
+    raised_amount_usd: float
+
+
+class InvestmentPredictResponse(BaseModel):
+    predicted_next_investment: float
+    expected_portfolio_return: float
+    risk_score: float
+    risk_level: str
+
+
+def calc_size_risk(amount: float) -> float:
+    return float(np.clip(amount / 50_000_000, 0, 1))
+
+
+def calc_stage_risk(round_code: Optional[str]) -> float:
+    mapping = {
+        "seed": 0.2,
+        "angel": 0.2,
+        "pre-seed": 0.15,
+        "a": 0.4,
+        "b": 0.6,
+        "c": 0.8,
+        "d": 0.9,
+        "growth": 1.0
+    }
+    if not round_code:
+        return 0.5
+    return mapping.get(round_code.lower(), 0.6)
+
+
+def calc_volatility_risk(history: np.ndarray) -> float:
+    if len(history) < 5:
+        return 0.3
+    returns = np.diff(history) / history[:-1]
+    vol = np.std(returns)
+    return float(np.clip(vol / 0.5, 0, 1))
 
 
 @app.post("/predict/investment", response_model=InvestmentPredictResponse)
 def predict_investment(req: InvestmentRiskInput):
     try:
-        model = get_or_load_model(
-            model_ref=investment_model_ref,
-            s3_key=OUTPUT_MODEL_INVEST,
-            loader="keras"
-        )
-        seq = np.array([[req.raised_amount_usd or 0]])
-        seq = seq.reshape(1, -1, 1)  # (batch=1, timesteps=1, features=1)
+        if req.raised_amount_usd <= 0:
+            raise HTTPException(400, "raised_amount_usd must be > 0")
 
-        pred = model.predict(seq)[0, 0]
-        risk_score = float(np.std(seq))
-        expected_portfolio_return = float(pred)  # можно уточнить логику
+        model = get_or_load_model(
+            investment_model_ref,
+            OUTPUT_MODEL_INVEST,
+            "keras"
+        )
+
+        value = float(req.raised_amount_usd)
+
+        seq = np.full(
+            (1, SEQ_LENGTH, 1),
+            value,
+            dtype=np.float32
+        )
+
+        pred = float(model.predict(seq, verbose=0)[0][0])
+
+        expected_return = (pred - value) / value
+
+        history = seq.flatten()
+
+        size_risk = calc_size_risk(value)
+        stage_risk = calc_stage_risk(req.funding_round_code)
+        volatility_risk = calc_volatility_risk(history)
+
+        risk_score = (
+            0.4 * size_risk +
+            0.4 * volatility_risk +
+            0.2 * stage_risk
+        )
+
+        if risk_score < 0.3:
+            risk_level = "LOW"
+        elif risk_score < 0.6:
+            risk_level = "MEDIUM"
+        else:
+            risk_level = "HIGH"
 
         return InvestmentPredictResponse(
-            predicted_next_investment=float(pred),
-            expected_portfolio_return=expected_portfolio_return,
-            risk_score=risk_score
+            predicted_next_investment=round(pred, 2),
+            expected_portfolio_return=round(expected_return, 4),
+            risk_score=round(risk_score, 4),
+            risk_level=risk_level
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
+
+    except HTTPException:
+        raise
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail="Investment prediction failed"
+        )
