@@ -1,0 +1,25 @@
+POST http://localhost/api/analysis_credit/
+Content-Type: application/json
+
+{
+  "app_date": "19DEC2025",
+  "education": "GRD",
+  "sex": "F",
+  "age": 30,
+  "car": "Y",
+  "car_type": "Y",
+  "decline_app_cnt": 0,
+  "good_work": 1,
+  "score_bki": -2.5,
+  "bki_request_cnt": 0,
+  "region_rating": 50,
+  "home_address": 1,
+  "work_address": 1,
+  "income": 80000,
+  "sna": 1,
+  "first_time": 0,
+  "foreign_passport": "Y"
+}
+
+
+

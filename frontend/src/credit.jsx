@@ -7,33 +7,55 @@ import './main.min.css'
 import Footer from '/src/Footer.jsx';
 
 const Credit = () => {
-        const [formData, setFormData] = useState({
-            f_Text: "",
-            f_Income: "",
-            f_Company: "",
-            f_Name: "",
-            f_Phone: "",
-            f_Mail: "",
-        });
+    const [formData, setFormData] = useState({
+        app_date: "2025-12-19",
+        education: "GRD",
+        sex: "F",
+        age: 30,
+        car: "Y",
+        car_type: "Y",
+        decline_app_cnt: 0,
+        good_work: 1,
+        score_bki: -2.5,
+        bki_request_cnt: 0,
+        region_rating: 50,
+        home_address: 1,
+        work_address: 1,
+        income: 80000,
+        sna: 1,
+        first_time: 0,
+        foreign_passport: "Y"
+    });
 
-        const handleChange = (e) => {
-            const {name, value} = e.target;
-            setFormData((prevData) => ({
-                ...prevData,
-                [name]: value,
-            }));
-        };
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
 
-        const handleSubmit = async (e) => {
-            e.preventDefault();
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
-            try {
-                const response = await axios.post("/api/credit_form/", formData);
-                console.log("Form submitted successfully", response.data);
-            } catch (error) {
-                console.error("Error submitting form", error);
-            }
-        };
+        try {
+            const response = await fetch("http://localhost/api/analysis_credit/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+            });
+
+            const result = await response.json();
+            console.log("Response:", result);
+            alert("Форма успешно отправлена!");
+        } catch (error) {
+            console.error("Ошибка при отправке:", error);
+            alert("Ошибка при отправке формы");
+        }
+    };
+
 
         useEffect(() => {
             const script = document.createElement('script');
@@ -145,106 +167,212 @@ const Credit = () => {
                                 </header>
                                 <div className="page__content">
                                     <div className="application js-message-container">
-                                        <form onSubmit={handleSubmit}>
+                                        <form className="default-form" onSubmit={handleSubmit}>
                                             <div className="default-form__section">
+
                                                 <div className="default-form__row">
-                                                    <div className="input js-input">
-            <textarea
-                name="f_Text"
-                placeholder="История заёмщика в кредитных организациях"
-                autoComplete="off"
-                value={formData.f_Text}
-                onChange={handleChange}
-            />
-                                                    </div>
+                                                    <label htmlFor="app_date">Дата подачи заявки</label>
+                                                    <input
+                                                        type="date"
+                                                        id="app_date"
+                                                        name="app_date"
+                                                        value={formData.app_date}
+                                                        onChange={handleChange}
+                                                    />
                                                 </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="education">Ваше образование</label>
+                                                    <input
+                                                        type="text"
+                                                        id="education"
+                                                        name="education"
+                                                        value={formData.education}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="sex">Пол</label>
+                                                    <select id="sex" name="sex" value={formData.sex}
+                                                            onChange={handleChange}>
+                                                        <option value="">Выберите пол</option>
+                                                        <option value="M">Мужской</option>
+                                                        <option value="F">Женский</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="age">Возраст</label>
+                                                    <input
+                                                        type="number"
+                                                        id="age"
+                                                        name="age"
+                                                        value={formData.age}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="car">Автомобиль</label>
+                                                    <select id="car" name="car" value={formData.car}
+                                                            onChange={handleChange}>
+                                                        <option value="">Есть ли у вас автомобиль?</option>
+                                                        <option value="Y">Да</option>
+                                                        <option value="N">Нет</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="car_type">Тип автомобиля</label>
+                                                    <select id="car_type" name="car_type" value={formData.car_type}
+                                                            onChange={handleChange}>
+                                                        <option value="">Свой или нет?</option>
+                                                        <option value="Y">Свой</option>
+                                                        <option value="N">Арендованный / нет</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="decline_app_cnt">Количество отказов по прошлым
+                                                        заявкам</label>
+                                                    <input
+                                                        type="number"
+                                                        id="decline_app_cnt"
+                                                        name="decline_app_cnt"
+                                                        value={formData.decline_app_cnt}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="good_work">Стабильность работы (месяцы)</label>
+                                                    <input
+                                                        type="number"
+                                                        id="good_work"
+                                                        name="good_work"
+                                                        value={formData.good_work}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="score_bki">Кредитный скор (BKI)</label>
+                                                    <input
+                                                        type="number"
+                                                        id="score_bki"
+                                                        name="score_bki"
+                                                        value={formData.score_bki}
+                                                        onChange={handleChange}
+                                                        step="0.01"
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="bki_request_cnt">Количество запросов в БКИ</label>
+                                                    <input
+                                                        type="number"
+                                                        id="bki_request_cnt"
+                                                        name="bki_request_cnt"
+                                                        value={formData.bki_request_cnt}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="region_rating">Рейтинг вашего региона</label>
+                                                    <input
+                                                        type="number"
+                                                        id="region_rating"
+                                                        name="region_rating"
+                                                        value={formData.region_rating}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="home_address">Доступность/удалённость от
+                                                        дома</label>
+                                                    <input
+                                                        type="number"
+                                                        id="home_address"
+                                                        name="home_address"
+                                                        value={formData.home_address}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="work_address">Доступность/удалённость от
+                                                        работы</label>
+                                                    <input
+                                                        type="number"
+                                                        id="work_address"
+                                                        name="work_address"
+                                                        value={formData.work_address}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="income">Ваш ежемесячный доход</label>
+                                                    <input
+                                                        type="number"
+                                                        id="income"
+                                                        name="income"
+                                                        value={formData.income}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="sna">Социально-демографический индекс (SNA)</label>
+                                                    <input
+                                                        type="number"
+                                                        id="sna"
+                                                        name="sna"
+                                                        value={formData.sna}
+                                                        onChange={handleChange}
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="first_time">Первый раз берёте кредит?</label>
+                                                    <input
+                                                        type="number"
+                                                        id="first_time"
+                                                        name="first_time"
+                                                        value={formData.first_time}
+                                                        onChange={handleChange}
+                                                        placeholder="1=Да, 0=Нет"
+                                                    />
+                                                </div>
+
+                                                <div className="default-form__row">
+                                                    <label htmlFor="foreign_passport">Есть ли загранпаспорт?</label>
+                                                    <select
+                                                        id="foreign_passport"
+                                                        name="foreign_passport"
+                                                        value={formData.foreign_passport}
+                                                        onChange={handleChange}
+                                                    >
+                                                        <option value="">Выберите вариант</option>
+                                                        <option value="Y">Да</option>
+                                                        <option value="N">Нет</option>
+                                                    </select>
+                                                </div>
+
                                             </div>
 
                                             <div className="default-form__section">
                                                 <div className="default-form__row">
-                                                    <div className="input js-input">
-                                                        <input
-                                                            type="text"
-                                                            name="f_Income"
-                                                            placeholder="Доход заёмщика"
-                                                            autoComplete="off"
-                                                            value={formData.f_Income}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="default-form__row">
-                                                    <div className="input js-input">
-                                                        <input
-                                                            type="text"
-                                                            name="f_Company"
-                                                            placeholder="Уплачиваемые налоги заёмщиком"
-                                                            autoComplete="off"
-                                                            value={formData.f_Company}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="default-form__row">
-                                                    <div className="input js-input">
-                                                        <input
-                                                            type="text"
-                                                            name="f_Company"
-                                                            placeholder="Компания"
-                                                            autoComplete="off"
-                                                            value={formData.f_Company}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="default-form__row">
-                                                    <div className="input js-input">
-                                                        <input
-                                                            type="text"
-                                                            name="f_Name"
-                                                            placeholder="ФИО"
-                                                            autoComplete="off"
-                                                            value={formData.f_Name}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="default-form__row">
-                                                    <div className="default-form__element default-form__element--phone">
-                                                        <div className="input input--mini js-input">
-                                                            <input
-                                                                className="js-input-phone"
-                                                                type="tel"
-                                                                name="f_Phone"
-                                                                placeholder="+7 ___ ___ - __ - __"
-                                                                autoComplete="off"
-                                                                inputMode="text"
-                                                                value={formData.f_Phone}
-                                                                onChange={handleChange}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="default-form__element default-form__element--auto">
-                                                        <div className="input js-input">
-                                                            <input
-                                                                type="email"
-                                                                name="f_Mail"
-                                                                placeholder="Электронная почта"
-                                                                autoComplete="off"
-                                                                value={formData.f_Mail}
-                                                                onChange={handleChange}
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    <button className="button" type="submit">
+                                                        Отправить заявку
+                                                    </button>
                                                 </div>
                                             </div>
-
-                                            <button type="submit">Отправить</button>
                                         </form>
+
                                         <div className="default-form-success js-success-message">
                                             <div className="default-form-success__content">
                                                 <div className="default-form-success__icon">

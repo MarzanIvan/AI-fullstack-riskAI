@@ -10,6 +10,45 @@ import traceback
 import boto3
 from botocore.client import Config
 
+
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class CreditFeatureEngineer(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        self.region_income_mean_ = (
+            X.groupby("region_rating")["income"].mean().to_dict()
+        )
+        self.age_income_mean_ = (
+            X.groupby("age")["income"].mean().to_dict()
+        )
+        self.age_bki_mean_ = (
+            X.groupby("age")["score_bki"].mean().to_dict()
+        )
+        return self
+
+    def transform(self, X):
+        df = X.copy()
+
+        df["income_to_request"] = df["income"] / (df["bki_request_cnt"] + 1)
+
+        df["mean_income_region"] = df["region_rating"].map(
+            self.region_income_mean_
+        ).fillna(df["income"])
+
+        df["mean_income_age"] = df["age"].map(
+            self.age_income_mean_
+        ).fillna(df["income"])
+
+        df["mean_bki_age"] = df["age"].map(
+            self.age_bki_mean_
+        ).fillna(df["score_bki"])
+
+        df["sex"] = df["sex"].map({"M": 1, "F": 0}).fillna(0)
+        df["good_work"] = df["good_work"].astype(int)
+        df["first_time"] = df["first_time"].astype(int)
+
+        return df
+
 app = FastAPI(title="predict")
 
 
@@ -77,45 +116,6 @@ s3 = S3Client(
     aws_access_key_id=os.getenv("YANDEX_ACCESS_KEY_ID"),
     aws_secret_access_key=os.getenv("YANDEX_SECRET_ACCESS_KEY"),
 )
-
-
-from sklearn.base import BaseEstimator, TransformerMixin
-
-class CreditFeatureEngineer(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None):
-        self.region_income_mean_ = (
-            X.groupby("region_rating")["income"].mean().to_dict()
-        )
-        self.age_income_mean_ = (
-            X.groupby("age")["income"].mean().to_dict()
-        )
-        self.age_bki_mean_ = (
-            X.groupby("age")["score_bki"].mean().to_dict()
-        )
-        return self
-
-    def transform(self, X):
-        df = X.copy()
-
-        df["income_to_request"] = df["income"] / (df["bki_request_cnt"] + 1)
-
-        df["mean_income_region"] = df["region_rating"].map(
-            self.region_income_mean_
-        ).fillna(df["income"])
-
-        df["mean_income_age"] = df["age"].map(
-            self.age_income_mean_
-        ).fillna(df["income"])
-
-        df["mean_bki_age"] = df["age"].map(
-            self.age_bki_mean_
-        ).fillna(df["score_bki"])
-
-        df["sex"] = df["sex"].map({"M": 1, "F": 0}).fillna(0)
-        df["good_work"] = df["good_work"].astype(int)
-        df["first_time"] = df["first_time"].astype(int)
-
-        return df
 
 
 def get_or_load_model(model_ref, local_path: str, model_type: str):
